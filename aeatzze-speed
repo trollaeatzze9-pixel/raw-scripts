@@ -1,0 +1,203 @@
+--// OLD SPEED GLITCH
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+--// PLAYER
+local player = Players.LocalPlayer
+
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function setupChar(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    local root = char:WaitForChild("HumanoidRootPart")
+    return humanoid, root
+end
+
+local character = getCharacter()
+local humanoid, root = setupChar(character)
+local camera = workspace.CurrentCamera
+
+--// VARIABLES
+local baseWalkSpeed = humanoid.WalkSpeed
+local speedBoost = 25
+local sistemaAtivo = false
+
+-- FLING
+local boostForce = 135
+
+----------------------------------------------------------------
+-- UI (UPDATE BUTTON)
+----------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 140, 0, 50)
+toggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Text = "Update: OFF"
+toggleButton.Active = true
+toggleButton.Draggable = true
+toggleButton.Parent = screenGui
+
+local function updateButton()
+    if sistemaAtivo then
+        toggleButton.Text = "aeatzze speed : ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        toggleButton.Text = "aeatzze speed: OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+    sistemaAtivo = not sistemaAtivo
+    updateButton()
+
+    if not sistemaAtivo then
+        humanoid.WalkSpeed = baseWalkSpeed
+        boostActive = false
+        boostSpeed = BASE_SPEED
+        jumpsUsed = 0
+    end
+end)
+
+----------------------------------------------------------------
+-- SPEED JUMP + FLING
+----------------------------------------------------------------
+local function connectJump(hum)
+    hum.StateChanged:Connect(function(_, state)
+        if not sistemaAtivo then return end
+
+        if state == Enum.HumanoidStateType.Jumping then
+            hum.WalkSpeed = baseWalkSpeed + speedBoost
+        elseif state == Enum.HumanoidStateType.Landed then
+            hum.WalkSpeed = baseWalkSpeed
+        end
+    end)
+
+    -- FLING
+    hum.Jumping:Connect(function()
+        if not sistemaAtivo then return end
+
+        if root and root.CFrame.UpVector.Y < 0.7 then
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyLinearVelocity += Vector3.new(0, boostForce, 0)
+        end
+    end)
+end
+
+connectJump(humanoid)
+
+----------------------------------------------------------------
+-- SWIPE MOBILE
+----------------------------------------------------------------
+local boost = 16
+local sensitivity = 0.06
+local minSwipe = 1.2
+local lastTouch = nil
+
+local function addVelocity(dir)
+    dir = Vector3.new(dir.X, 0, dir.Z)
+    root.Velocity += dir * boost
+end
+
+UserInputService.TouchMoved:Connect(function(input, gp)
+    if gp or not sistemaAtivo then return end
+
+    if not lastTouch then
+        lastTouch = input.Position
+        return
+    end
+
+    local deltaX = input.Position.X - lastTouch.X
+    lastTouch = input.Position
+
+    if math.abs(deltaX) < minSwipe then return end
+    if humanoid.MoveDirection.Magnitude < 0.1 then return end
+
+    local dir = -camera.CFrame.RightVector * deltaX * sensitivity
+    addVelocity(dir)
+end)
+
+UserInputService.TouchEnded:Connect(function()
+    lastTouch = nil
+end)
+
+----------------------------------------------------------------
+-- CNPS BOOST
+----------------------------------------------------------------
+local BASE_SPEED = 25
+local MAX_SPEED = 41
+local CAM_THRESHOLD = 0.02
+local BOOST_PULSE = 16
+local MAX_JUMPS = 3
+local BACK_THRESHOLD = 0.45
+
+local boostActive = false
+local boostDir = nil
+local boostSpeed = BASE_SPEED
+local lastCam = {camera.CFrame:ToOrientation()}
+local jumpsUsed = 0
+local noAir = false
+
+humanoid.StateChanged:Connect(function(_, state)
+    if not sistemaAtivo then return end
+
+    if state == Enum.HumanoidStateType.Jumping or state == Enum.HumanoidStateType.Freefall then
+        noAir = true
+    elseif state == Enum.HumanoidStateType.Landed then
+        noAir = false
+        boostActive = false
+        boostSpeed = BASE_SPEED
+        jumpsUsed = 0
+        humanoid.WalkSpeed = baseWalkSpeed
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not sistemaAtivo or not noAir then return end
+
+    local moveDir = humanoid.MoveDirection
+    if moveDir.Magnitude == 0 then return end
+
+    local look = root.CFrame.LookVector
+    if moveDir:Dot(-look) < BACK_THRESHOLD then return end
+    if jumpsUsed >= MAX_JUMPS then return end
+
+    local pitch, yaw = camera.CFrame:ToOrientation()
+    local lp, ly = unpack(lastCam)
+    local delta = math.abs(yaw - ly) + math.abs(pitch - lp)
+
+    if delta > CAM_THRESHOLD then
+        if not boostActive then
+            boostDir = Vector3.new(-look.X, 0, -look.Z).Unit
+            boostActive = true
+            boostSpeed = BASE_SPEED
+            jumpsUsed += 1
+        end
+
+        boostSpeed = math.clamp(boostSpeed + BOOST_PULSE, BASE_SPEED, MAX_SPEED)
+    end
+
+    lastCam = {pitch, yaw}
+end)
+
+----------------------------------------------------------------
+-- RESPAWN
+----------------------------------------------------------------
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid, root = setupChar(char)
+    camera = workspace.CurrentCamera
+    baseWalkSpeed = humanoid.WalkSpeed
+
+    connectJump(humanoid)
+end)
+
+updateButton()
