@@ -1,0 +1,72 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local power = 50
+_G.FlingEnabled = false
+
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleButton = Instance.new("TextButton")
+
+ScreenGui.Parent = game:GetService("CoreGui")
+ToggleButton.Parent = ScreenGui
+
+ToggleButton.Size = UDim2.new(0, 120, 0, 50)
+ToggleButton.Position = UDim2.new(0.5, -60, 0.1, 0)
+ToggleButton.Text = "AEZ Fling: OFF"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Draggable = true
+
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function fling()
+    local character = getCharacter()
+    local root = character:FindFirstChild("HumanoidRootPart")
+
+    if not root then
+        return
+    end
+
+    local direction = root.CFrame.LookVector
+
+    root.AssemblyLinearVelocity =
+        direction * power * 10 +
+        Vector3.new(0, power * 4, 0)
+end
+
+ToggleButton.MouseButton1Click:Connect(function()
+    _G.FlingEnabled = not _G.FlingEnabled
+
+    if _G.FlingEnabled then
+        ToggleButton.Text = "AEZ Fling: ON"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    else
+        ToggleButton.Text = "AEZ Fling: OFF"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not _G.FlingEnabled then
+        return
+    end
+
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+
+    if not root then
+        return
+    end
+
+    local touching = workspace:GetPartsInPart(root)
+
+    for _, part in ipairs(touching) do
+        if part and part:IsA("BasePart") and not part:IsDescendantOf(character) then
+            fling()
+            break
+        end
+    end
+end)
