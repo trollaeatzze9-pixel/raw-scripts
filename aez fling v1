@@ -1,0 +1,158 @@
+--// AEZ FLING V2
+--// Roblox Studio - For your own game
+--// Gear / Wall Boost = 300
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local FLING_POWER = 100
+local FORWARD_SPEED = 300
+
+local active = false
+local character
+local humanoid
+local root
+
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+--------------------------------------------------
+-- UI
+--------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AezFlingV2"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 140, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "Aez Fling: OFF"
+button.TextSize = 14
+button.Font = Enum.Font.SourceSansBold
+button.Active = true
+button.Draggable = true
+button.Parent = gui
+
+local function updateButton()
+	if active then
+		button.Text = "Aez Fling: ON"
+		button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	else
+		button.Text = "Aez Fling: OFF"
+		button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+	end
+end
+
+button.MouseButton1Click:Connect(function()
+	active = not active
+	updateButton()
+end)
+
+--------------------------------------------------
+-- FORWARD BOOST
+--------------------------------------------------
+
+local function forwardBoost()
+	if not active or not root then
+		return
+	end
+
+	local look = root.CFrame.LookVector
+
+	root.AssemblyLinearVelocity = Vector3.new(
+		look.X * FORWARD_SPEED,
+		root.AssemblyLinearVelocity.Y,
+		look.Z * FORWARD_SPEED
+	)
+end
+
+--------------------------------------------------
+-- GEAR DETECTION
+--------------------------------------------------
+
+local function hasGearEquipped()
+	if not character then
+		return false
+	end
+
+	for _, object in ipairs(character:GetChildren()) do
+		if object:IsA("Tool") then
+			return true
+		end
+	end
+
+	return false
+end
+
+--------------------------------------------------
+-- WALL DETECTION
+--------------------------------------------------
+
+local function touchingWall()
+	if not root then
+		return false
+	end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {character}
+
+	local look = root.CFrame.LookVector
+
+	local result = workspace:Raycast(
+		root.Position,
+		look * 3,
+		params
+	)
+
+	return result ~= nil
+end
+
+--------------------------------------------------
+-- MAIN LOOP
+--------------------------------------------------
+
+RunService.Heartbeat:Connect(function()
+	if not active or not character or not humanoid or not root then
+		return
+	end
+
+	-- Gear equipped
+	if hasGearEquipped() then
+		forwardBoost()
+		return
+	end
+
+	-- Wall in front
+	if touchingWall() then
+		forwardBoost()
+		return
+	end
+end)
+
+--------------------------------------------------
+-- RESPAWN
+--------------------------------------------------
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+
+	task.wait(0.5)
+
+	if active then
+		updateButton()
+	end
+end)
+
+updateButton()
