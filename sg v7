@@ -1,0 +1,156 @@
+--// SG V7 - Stable Ghost Test
+--// For Roblox Studio / private testing
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local CONFIG = {
+    Offset = Vector3.new(0, 3, 0),
+    Transparency = 1,
+    GhostSize = Vector3.new(1, 1, 1),
+    RebuildOnToolChange = true,
+}
+
+local state = {
+    character = nil,
+    humanoid = nil,
+    torso = nil,
+    ghost = nil,
+    weld = nil,
+    connections = {},
+}
+
+local function disconnectAll()
+    for _, connection in ipairs(state.connections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+
+    table.clear(state.connections)
+end
+
+local function cleanupGhost()
+    if state.weld then
+        state.weld:Destroy()
+        state.weld = nil
+    end
+
+    if state.ghost then
+        state.ghost:Destroy()
+        state.ghost = nil
+    end
+end
+
+local function getTorso(character)
+    return character:FindFirstChild("UpperTorso")
+        or character:FindFirstChild("Torso")
+        or character:FindFirstChild("HumanoidRootPart")
+end
+
+local function createGhost()
+    local character = state.character
+    if not character or not character.Parent then
+        return
+    end
+
+    local torso = getTorso(character)
+    if not torso then
+        return
+    end
+
+    cleanupGhost()
+
+    state.torso = torso
+
+    local ghost = Instance.new("Part")
+    ghost.Name = "SG_V7_Ghost"
+    ghost.Size = CONFIG.GhostSize
+    ghost.Transparency = CONFIG.Transparency
+    ghost.Anchored = false
+    ghost.CanCollide = false
+    ghost.CanTouch = false
+    ghost.CanQuery = false
+    ghost.Massless = true
+    ghost.CFrame = torso.CFrame
+    ghost.Parent = character
+
+    local weld = Instance.new("Weld")
+    weld.Name = "SG_V7_Weld"
+    weld.Part0 = torso
+    weld.Part1 = ghost
+    weld.C0 = CFrame.new(CONFIG.Offset)
+    weld.Parent = ghost
+
+    state.ghost = ghost
+    state.weld = weld
+end
+
+local function setupCharacter(character)
+    disconnectAll()
+    cleanupGhost()
+
+    state.character = character
+    state.humanoid = character:FindFirstChildOfClass("Humanoid")
+    state.torso = nil
+
+    if not state.humanoid then
+        state.humanoid = character:WaitForChild("Humanoid", 5)
+    end
+
+    createGhost()
+
+    if state.humanoid then
+        table.insert(state.connections,
+            state.humanoid.Died:Connect(function()
+                cleanupGhost()
+            end)
+        )
+    end
+
+    if CONFIG.RebuildOnToolChange then
+        table.insert(state.connections,
+            character.ChildAdded:Connect(function(child)
+                if child:IsA("Tool") then
+                    task.defer(createGhost)
+                end
+            end)
+        )
+
+        table.insert(state.connections,
+            character.ChildRemoved:Connect(function(child)
+                if child:IsA("Tool") then
+                    task.defer(createGhost)
+                end
+            end)
+        )
+    end
+end
+
+if player.Character then
+    task.defer(setupCharacter, player.Character)
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+
+RunService.Heartbeat:Connect(function()
+    if not state.character or not state.character.Parent then
+        return
+    end
+
+    if not state.ghost or not state.ghost.Parent then
+        createGhost()
+        return
+    end
+
+    if not state.weld or not state.weld.Parent then
+        createGhost()
+        return
+    end
+
+    if state.weld.C0 ~= CFrame.new(CONFIG.Offset) then
+        state.weld.C0 = CFrame.new(CONFIG.Offset)
+    end
+end)
