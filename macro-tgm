@@ -1,0 +1,128 @@
+-- LocalScript
+-- ضع السكربت داخل StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TouchRotate"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- الدائرة
+local circle = Instance.new("TextButton")
+circle.Name = "RotateButton"
+circle.Size = UDim2.fromOffset(120, 120)
+circle.Position = UDim2.new(0.5, -60, 0.7, -60)
+circle.Text = "HOLD"
+circle.TextScaled = true
+circle.BackgroundTransparency = 0.15
+circle.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = circle
+
+-- الإعدادات
+local settings = Instance.new("Frame")
+settings.Size = UDim2.fromOffset(220, 100)
+settings.Position = UDim2.new(0, 15, 0, 100)
+settings.BackgroundTransparency = 0.15
+settings.Parent = gui
+
+local powerLabel = Instance.new("TextLabel")
+powerLabel.Size = UDim2.new(1, 0, 0.45, 0)
+powerLabel.BackgroundTransparency = 1
+powerLabel.Text = "Power: 10"
+powerLabel.TextScaled = true
+powerLabel.Parent = settings
+
+local powerBox = Instance.new("TextBox")
+powerBox.Size = UDim2.new(0.9, 0, 0.4, 0)
+powerBox.Position = UDim2.new(0.05, 0, 0.5, 0)
+powerBox.Text = "10"
+powerBox.TextScaled = true
+powerBox.ClearTextOnFocus = false
+powerBox.Parent = settings
+
+local power = 10
+local holding = false
+local holdInput = nil
+
+powerBox.FocusLost:Connect(function()
+	local value = tonumber(powerBox.Text)
+
+	if value then
+		power = math.clamp(value, 1, 100)
+		powerBox.Text = tostring(power)
+		powerLabel.Text = "Power: " .. power
+	else
+		powerBox.Text = tostring(power)
+	end
+end)
+
+-- سحب الدائرة
+local dragging = false
+local dragStart
+local startPosition
+
+circle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		dragStart = input.Position
+		startPosition = circle.Position
+		holdInput = input
+		holding = true
+	end
+end)
+
+circle.InputEnded:Connect(function(input)
+	if input == holdInput
+		or input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		holding = false
+		dragging = false
+		holdInput = nil
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not holding then
+		return
+	end
+
+	if input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseMovement then
+
+		local distance = (input.Position - dragStart).Magnitude
+
+		-- لو الإصبع اتحرك، اعتبرها عملية سحب
+		if distance > 12 then
+			dragging = true
+
+			local delta = input.Position - dragStart
+
+			circle.Position = UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+-- الدوران أثناء الضغط
+RunService.RenderStepped:Connect(function(dt)
+	if holding and not dragging then
+		camera.CFrame =
+			camera.CFrame
+			* CFrame.Angles(0, math.rad(power) * dt * 60, 0)
+	end
+end)
