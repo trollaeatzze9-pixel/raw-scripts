@@ -1,0 +1,190 @@
+--// AEZ FLING V2
+--// Self Fling | Power 100
+--// ON = READY
+--// Gear / Wall = FLING
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local POWER = 100
+
+local enabled = false
+local flinging = false
+
+local character
+local humanoid
+local root
+
+local flingConnection
+local wallConnection
+
+--------------------------------------------------
+-- CHARACTER
+--------------------------------------------------
+
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+--------------------------------------------------
+-- UI
+--------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AezFlingV2"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 140, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "Aez Fling: OFF"
+button.TextSize = 14
+button.Font = Enum.Font.SourceSansBold
+button.Active = true
+button.Draggable = true
+button.Parent = gui
+
+--------------------------------------------------
+-- STOP FLING
+--------------------------------------------------
+
+local function stopFling()
+	flinging = false
+
+	if flingConnection then
+		flingConnection:Disconnect()
+		flingConnection = nil
+	end
+
+	if root then
+		root.AssemblyAngularVelocity = Vector3.zero
+	end
+end
+
+--------------------------------------------------
+-- START FLING
+--------------------------------------------------
+
+local function startFling()
+	if not enabled or flinging or not root then
+		return
+	end
+
+	flinging = true
+
+	flingConnection = RunService.Heartbeat:Connect(function()
+		if not enabled or not root then
+			stopFling()
+			return
+		end
+
+		local direction = root.CFrame.LookVector
+
+		-- Fling فقط، بدون تغيير WalkSpeed
+		root.AssemblyAngularVelocity = Vector3.new(
+			POWER,
+			POWER,
+			POWER
+		)
+
+		root.AssemblyLinearVelocity = Vector3.new(
+			direction.X * POWER,
+			POWER,
+			direction.Z * POWER
+		)
+	end)
+end
+
+--------------------------------------------------
+-- GEAR DETECTION
+--------------------------------------------------
+
+local function checkGear()
+	if not enabled or not character then
+		return
+	end
+
+	for _, obj in ipairs(character:GetChildren()) do
+		if obj:IsA("Tool") then
+			startFling()
+			return
+		end
+	end
+end
+
+character.ChildAdded:Connect(function(obj)
+	if obj:IsA("Tool") then
+		startFling()
+	end
+end)
+
+--------------------------------------------------
+-- WALL DETECTION
+--------------------------------------------------
+
+RunService.Heartbeat:Connect(function()
+	if not enabled or not root or not character then
+		return
+	end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {character}
+
+	local direction = root.CFrame.LookVector
+
+	local hit = workspace:Raycast(
+		root.Position,
+		direction * 2.5,
+		params
+	)
+
+	if hit then
+		startFling()
+	end
+end)
+
+--------------------------------------------------
+-- BUTTON
+--------------------------------------------------
+
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+
+	if enabled then
+		button.Text = "Aez Fling: ON"
+		button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+
+		-- لا يبدأ Fling هنا
+		-- ينتظر Gear أو Wall
+	else
+		button.Text = "Aez Fling: OFF"
+		button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+
+		stopFling()
+	end
+end)
+
+--------------------------------------------------
+-- RESPAWN
+--------------------------------------------------
+
+player.CharacterAdded:Connect(function(char)
+	stopFling()
+	setupCharacter(char)
+
+	char.ChildAdded:Connect(function(obj)
+		if obj:IsA("Tool") then
+			startFling()
+		end
+	end)
+end)
