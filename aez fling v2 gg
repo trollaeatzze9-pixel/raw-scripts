@@ -1,0 +1,140 @@
+--// AEZ FLING V2
+--// Self Fling | Power 300
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local POWER = 300
+local enabled = false
+local character
+local humanoid
+local root
+local flingConnection
+
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+--------------------------------------------------
+-- UI
+--------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AezFlingV2"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 140, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "Aez Fling: OFF"
+button.TextSize = 14
+button.Font = Enum.Font.SourceSansBold
+button.Active = true
+button.Draggable = true
+button.Parent = gui
+
+local function updateButton()
+	if enabled then
+		button.Text = "aez Fling v2: ON"
+		button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	else
+		button.Text = "aez fling v2 : OFF"
+		button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+	end
+end
+
+--------------------------------------------------
+-- STOP FLING
+--------------------------------------------------
+
+local function stopFling()
+	if flingConnection then
+		flingConnection:Disconnect()
+		flingConnection = nil
+	end
+
+	if root then
+		root.AssemblyAngularVelocity = Vector3.zero
+		root.AssemblyLinearVelocity = Vector3.zero
+	end
+end
+
+--------------------------------------------------
+-- SELF FLING
+--------------------------------------------------
+
+local function startFling()
+	if flingConnection then
+		flingConnection:Disconnect()
+		flingConnection = nil
+	end
+
+	flingConnection = RunService.Heartbeat:Connect(function()
+		if not enabled or not root then
+			return
+		end
+
+		root.AssemblyAngularVelocity = Vector3.new(
+			POWER,
+			POWER,
+			POWER
+		)
+
+		local direction = root.CFrame.LookVector
+
+		root.AssemblyLinearVelocity = Vector3.new(
+			direction.X * POWER,
+			POWER,
+			direction.Z * POWER
+		)
+	end)
+
+	-- إيقاف تلقائي بعد 1.5 ثانية
+	task.delay(1.5, function()
+		if enabled then
+			enabled = false
+			stopFling()
+			updateButton()
+		end
+	end)
+end
+
+--------------------------------------------------
+-- BUTTON
+--------------------------------------------------
+
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+
+	if enabled then
+		startFling()
+	else
+		stopFling()
+	end
+
+	updateButton()
+end)
+
+--------------------------------------------------
+-- RESPAWN
+--------------------------------------------------
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+
+	if enabled then
+		task.wait(0.5)
+		startFling()
+	end
+end)
+
+updateButton()
