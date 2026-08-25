@@ -1,0 +1,46 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local function createAutoHipPart(character)
+local root = character:WaitForChild("HumanoidRootPart")
+-- Đợi một chút để nhân vật load xong chiều cao thực tế
+task.wait(0.5)
+-- Tìm phần chân trái để lấy độ cao chuẩn
+local leftLeg = character:FindFirstChild("LeftUpperLeg") or character:FindFirstChild("Left Leg")
+if not leftLeg then return end
+-- TÍNH TOÁN: Lấy vị trí đùi so với RootPart
+-- Điều này giúp tìm ra khoảng cách Y chính xác dù Avatar cao hay lùn
+local offset = root.CFrame:Inverse() * leftLeg.CFrame
+local thighHeight = offset.Y
+-- Xóa part cũ
+if character:FindFirstChild("AutoThighPart") then
+character.AutoThighPart:Destroy()
+end
+-- 1. Tạo Part
+local part = Instance.new("Part")
+part.Name = "AutoThighPart"
+part.Size = Vector3.new(0.5, 0.5, 2)
+part.CanCollide = true
+part.Massless = true
+part.Parent = character
+-- 2. Gắn vị trí:
+-- X = -0.9 (sang trái)
+-- Y = thighHeight (độ cao tự động đo được từ chân)
+-- Z = 0
+part.CFrame = root.CFrame * CFrame.new(-0.9, thighHeight, 0)
+-- 3. Gắn chặt vào RootPart để ĐỨNG IM (không vung vẩy theo chân)
+local weld = Instance.new("WeldConstraint")
+weld.Part0 = part
+weld.Part1 = root
+weld.Parent = part
+-- Khóa va chạm
+part:GetPropertyChangedSignal("CanCollide"):Connect(function()
+part.CanCollide = true
+end)
+part.Transparency = 100
+part.Color = Color3.fromRGB(0, 255, 100)
+end
+if player.Character then
+createAutoHipPart(player.Character)
+end
+player.CharacterAdded:Connect(createAutoHipPart)
+print("--- Đã kích hoạt Auto-Height cho mọi Avatar (Đứng im) ---")
