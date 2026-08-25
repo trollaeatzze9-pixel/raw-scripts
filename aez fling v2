@@ -1,0 +1,92 @@
+-- Aez Fling
+-- Self Fling | Power: 100 | ON/OFF
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Player = Players.LocalPlayer
+local Power = 100
+local Enabled = false
+local Connection
+
+local function getCharacter()
+    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    local Root = Character:FindFirstChild("HumanoidRootPart")
+    
+    return Character, Humanoid, Root
+end
+
+-- GUI
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "AezFling"
+Gui.ResetOnSpawn = false
+Gui.Parent = Player:WaitForChild("PlayerGui")
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(0, 90, 0, 90)
+Button.Position = UDim2.new(0, 20, 0.5, -45)
+Button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+Button.TextColor3 = Color3.new(1, 1, 1)
+Button.Text = "OFF"
+Button.TextSize = 22
+Button.Font = Enum.Font.GothamBold
+Button.Parent = Gui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 12)
+Corner.Parent = Button
+
+local function stopFling()
+    Enabled = false
+    
+    if Connection then
+        Connection:Disconnect()
+        Connection = nil
+    end
+    
+    Button.Text = "OFF"
+    Button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+end
+
+local function startFling()
+    if Enabled then return end
+    
+    Enabled = true
+    Button.Text = "ON"
+    Button.BackgroundColor3 = Color3.fromRGB(0, 170, 70)
+
+    Connection = RunService.Heartbeat:Connect(function()
+        if not Enabled then return end
+        
+        local Character, Humanoid, Root = getCharacter()
+        if not Root or not Humanoid then return end
+
+        -- اتجاه حركة اللاعب
+        local MoveDirection = Humanoid.MoveDirection
+        
+        if MoveDirection.Magnitude > 0 then
+            Root.AssemblyLinearVelocity =
+                MoveDirection.Unit * Power * 10
+        else
+            -- فلنق للأمام لو واقف
+            Root.AssemblyLinearVelocity =
+                Root.CFrame.LookVector * Power * 10
+        end
+    end)
+end
+
+Button.Activated:Connect(function()
+    if Enabled then
+        stopFling()
+    else
+        startFling()
+    end
+end)
+
+Player.CharacterAdded:Connect(function()
+    if Enabled then
+        task.wait(1)
+        startFling()
+    end
+end)
