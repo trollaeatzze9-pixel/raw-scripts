@@ -1,0 +1,169 @@
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+--------------------------------------------------------------------------------
+-- 1. STATE TRACKING
+--------------------------------------------------------------------------------
+local ejecutando = false
+local noclipConexion = nil
+local saltoConexion = nil
+
+--------------------------------------------------------------------------------
+-- 2. RIG & TARGET DETECTION
+--------------------------------------------------------------------------------
+-- Dynamically checks if the avatar is R6 or R15
+local function getRigTarget(character)
+	if not character then return nil, nil, nil end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local rigType = humanoid and humanoid.RigType.Name or "R6"
+	
+	if rigType == "R15" then
+		-- R15: Targets RootRigAttachment to bypass animation overrides
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local att = hrp:FindFirstChild("RootRigAttachment") or hrp:FindFirstChild("RootAttachment")
+			if att then
+				return att, "Position", "R15"
+			end
+		end
+	else
+		-- R6: Targets RootJoint C0
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:FindFirstChild("RootJoint") and hrp.RootJoint:IsA("Motor6D") then
+			return hrp.RootJoint, "C0", "R6"
+		end
+	end
+	
+	return nil, nil, nil
+end
+
+local function restaurar(character, targetObj, propertyName, originalVal)
+	if noclipConexion then
+		noclipConexion:Disconnect()
+		noclipConexion = nil
+	end
+	
+	if saltoConexion then
+		saltoConexion:Disconnect()
+		saltoConexion = nil
+	end
+	
+	if targetObj and originalVal then
+		targetObj[propertyName] = originalVal
+	end
+	
+	if character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+	
+	ejecutando = false
+end
+
+--------------------------------------------------------------------------------
+-- 3. MASTER PROJECTION SYSTEM
+--------------------------------------------------------------------------------
+local OFFSETS = {
+	["Forward1"] = { R6 = CFrame.new(0, -200, 0), R15 = Vector3.new(0, 0, -200) },
+	["Forward2"] = { R6 = CFrame.new(0, 0, -200), R15 = Vector3.new(0, 0, -200) },
+	["Up"]       = { R6 = CFrame.new(0, 0, 200),  R15 = Vector3.new(0, 200, 0) },
+	["Left"]     = { R6 = CFrame.new(-30, 0, 0),  R15 = Vector3.new(-30, 0, 0) },
+	["Right"]    = { R6 = CFrame.new(30, 0, 0),   R15 = Vector3.new(30, 0, 0) }
+}
+
+local function playProjection(direction, timeIda, timeVuelta, useNoclipAndJump)
+	if ejecutando then return end
+	
+	local character = player.Character
+	if not character then return end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local targetObj, propName, rigType = getRigTarget(character)
+	if not targetObj or not humanoid then return end
+
+	ejecutando = true
+	local originalVal = targetObj[propName]
+	
+	local offset = OFFSETS[direction][rigType]
+	local targetVal = originalVal + offset
+
+	local tweenIr = TweenService:Create(targetObj, TweenInfo.new(timeIda, Enum.EasingStyle.Linear), {[propName] = targetVal})
+	local tweenVolver = TweenService:Create(targetObj, TweenInfo.new(timeVuelta, Enum.EasingStyle.Linear), {[propName] = originalVal})
+
+	-- Handle Noclip & Jump Cancel
+	if useNoclipAndJump then
+		noclipConexion = RunService.Stepped:Connect(function()
+			for _, part in ipairs(character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end)
+
+		saltoConexion = humanoid.Jumping:Connect(function()
+			if saltoConexion then
+				saltoConexion:Disconnect()
+				saltoConexion = nil
+			end
+			tweenIr:Cancel()
+			tweenVolver:Play()
+			tweenVolver.Completed:Wait()
+			restaurar(character, targetObj, propName, originalVal)
+		end)
+		
+		tweenIr:Play()
+		tweenIr.Completed:Connect(function(playbackState)
+			if playbackState == Enum.PlaybackState.Completed then
+				tweenVolver:Play()
+				tweenVolver.Completed:Wait()
+				restaurar(character, targetObj, propName, originalVal)
+			end
+		end)
+	else
+		-- Standard Execution
+		tweenIr:Play()
+		tweenIr.Completed:Wait()
+		tweenVolver:Play()
+		tweenVolver.Completed:Wait()
+		restaurar(character, targetObj, propName, originalVal)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- 4. CHAT LISTENERS
+--------------------------------------------------------------------------------
+player.Chatted:Connect(function(mensaje)
+	local comando = string.lower(mensaje):match("^%s*(.-)%s*$")
+	
+	if comando == "/e laugh" or comando == "/e laughter" then
+		task.spawn(function() playProjection("Forward1", 2, 2, false) end)
+		
+	elseif comando == "/e wave" then
+		task.spawn(function() playProjection("Up", 2, 2, true) end)
+		
+	elseif comando == "/e dance" then
+		task.spawn(function() playProjection("Left", 1.5, 1.5, false) end)
+		
+	elseif comando == "/e dance2" then
+		task.spawn(function() playProjection("Right", 1.5, 1.5, false) end)
+		
+	elseif comando == "/e dance3" then
+		task.spawn(function() playProjection("Up", 2, 2, false) end)
+		
+	elseif comando == "/e point" then
+		task.spawn(function() playProjection("Forward2", 2, 2, false) end)
+	end
+end)elseif comando == "/e custom" then
+		task.spawn(function() playProjection("Forward2", 2, 2, false) end)
+	end
+end)elseif comando == "/e dance" then
+		task.spawn(function() playProjection("Forward2", 2, 2, false) end)
+	end
+end)
