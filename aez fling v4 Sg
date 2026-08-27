@@ -1,0 +1,157 @@
+local P = game.Players.LocalPlayer
+local G = Instance.new("ScreenGui", P.PlayerGui)
+G.ResetOnSpawn = false
+
+local F = Instance.new("Frame", G)
+F.Size = UDim2.fromOffset(190,180)
+F.Position = UDim2.fromOffset(20,100)
+F.BackgroundColor3 = Color3.fromRGB(10,10,10)
+F.Active = true
+F.Draggable = true
+
+local T = Instance.new("TextLabel", F)
+T.Size = UDim2.new(1,-5,0,30)
+T.Position = UDim2.fromOffset(2,0)
+T.BackgroundColor3 = Color3.fromRGB(0,0,0)
+T.TextColor3 = Color3.fromRGB(255,255,255)
+T.Text = "AEZ FLING V4"
+T.TextScaled = true
+T.Font = Enum.Font.GothamBold
+
+local O = Instance.new("TextButton", F)
+O.Position = UDim2.new(1,-35,0,2)
+O.Size = UDim2.fromOffset(30,25)
+O.Text = "−"
+O.TextColor3 = Color3.fromRGB(255,255,255)
+O.BackgroundColor3 = Color3.fromRGB(25,25,25)
+
+local Close = Instance.new("TextButton", F)
+Close.Position = UDim2.new(1,-68,0,2)
+Close.Size = UDim2.fromOffset(30,25)
+Close.Text = "☒"
+Close.TextColor3 = Color3.fromRGB(255,255,255)
+Close.BackgroundColor3 = Color3.fromRGB(25,25,25)
+
+local S = Instance.new("ScrollingFrame", F)
+S.Position = UDim2.fromOffset(5,35)
+S.Size = UDim2.new(1,-10,1,-40)
+S.BackgroundColor3 = Color3.fromRGB(5,5,5)
+S.ScrollBarThickness = 5
+S.AutomaticCanvasSize = Enum.AutomaticSize.Y
+S.CanvasSize = UDim2.new(0,0,0,0)
+
+local L = Instance.new("UIListLayout", S)
+L.Padding = UDim.new(0,5)
+
+local levels = {
+    {"Frozen",0,Color3.fromRGB(40,140,255)},
+    {"Low Fling",75,Color3.fromRGB(80,170,255)},
+    {"Normal Fling",125,Color3.fromRGB(80,255,120)},
+    {"Strong Fling",175,Color3.fromRGB(180,255,70)},
+    {"Hard Fling",225,Color3.fromRGB(255,220,60)},
+    {"Ultra Fling",300,Color3.fromRGB(255,150,50)},
+    {"Extreme Fling",400,Color3.fromRGB(255,90,70)},
+    {"Omega Fling",500,Color3.fromRGB(190,70,255)},
+    {"Mega Fling",750,Color3.fromRGB(255,60,180)},
+    {"Insane Fling",1000,Color3.fromRGB(255,40,40)},
+    {"REAL FLING",1500,Color3.fromRGB(255,0,0)}
+}
+
+local frozen = false
+
+for _,v in ipairs(levels) do
+    local B = Instance.new("TextButton", S)
+
+    B.Size = UDim2.new(1,-5,0,40)
+    B.BackgroundColor3 = v[3]
+    B.TextColor3 = Color3.fromRGB(255,255,255)
+    B.Text = v[1]
+    B.TextScaled = true
+    B.Font = Enum.Font.GothamBold
+
+    B.Activated:Connect(function()
+        local C = P.Character
+        local R = C and C:FindFirstChild("HumanoidRootPart")
+        local H = C and C:FindFirstChildOfClass("Humanoid")
+
+        if not R then return end
+
+        if v[1] == "Frozen" then
+            frozen = not frozen
+            R.Anchored = frozen
+
+            if frozen then
+                R.AssemblyAngularVelocity = Vector3.zero
+                R.AssemblyLinearVelocity = Vector3.zero
+            end
+
+            if H then
+                H.AutoRotate = not frozen
+            end
+
+            B.Text = frozen and "Frozen [ON]" or "Frozen [OFF]"
+
+        elseif v[1] == "REAL FLING" then
+            frozen = false
+            R.Anchored = false
+
+            R.AssemblyAngularVelocity = Vector3.new(1500,1500,1500)
+            R.AssemblyLinearVelocity = Vector3.new(0,1500,0)
+
+            if H then
+                H.AutoRotate = true
+            end
+
+        else
+            frozen = false
+            R.Anchored = false
+
+            R.AssemblyAngularVelocity = Vector3.new(v[2],v[2],v[2])
+
+            if H then
+                H.AutoRotate = true
+            end
+
+            for _,child in ipairs(S:GetChildren()) do
+                if child:IsA("TextButton") then
+                    if child.Text == "Frozen [ON]" or child.Text == "Frozen [OFF]" then
+                        child.Text = "Frozen"
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local open = true
+
+O.Activated:Connect(function()
+    open = not open
+    S.Visible = open
+
+    if open then
+        F.Size = UDim2.fromOffset(190,180)
+        O.Text = "−"
+    else
+        F.Size = UDim2.fromOffset(190,35)
+        O.Text = "+"
+    end
+end)
+
+Close.Activated:Connect(function()
+    local C = P.Character
+    local R = C and C:FindFirstChild("HumanoidRootPart")
+    local H = C and C:FindFirstChildOfClass("Humanoid")
+
+    if R then
+        R.Anchored = false
+        R.AssemblyAngularVelocity = Vector3.zero
+        R.AssemblyLinearVelocity = Vector3.zero
+    end
+
+    if H then
+        H.AutoRotate = true
+    end
+
+    G:Destroy()
+end)
