@@ -1,0 +1,38 @@
+local P=game.Players.LocalPlayer
+local G=Instance.new("ScreenGui",P.PlayerGui)
+local F=Instance.new("Frame",G)
+
+F.Size=UDim2.fromOffset(180,330)
+F.Position=UDim2.fromOffset(20,100)
+F.Active=true
+F.Draggable=true
+
+local T=Instance.new("TextLabel",F)
+T.Size=UDim2.fromOffset(180,30)
+T.Text="AEZ FLING V4"
+
+local U=Instance.new("UIListLayout",F)
+U.Padding=UDim.new(0,6)
+U.Padding=UDim.new(0,6)
+
+local levels={
+	{"Low Fling",50},
+	{"Normal Fling",100},
+	{"Strong Fling",150},
+	{"Hard Fling",200},
+	{"Ultra Fling",250},
+	{"Omega Fling",500}
+}
+
+for _,v in ipairs(levels) do
+	local B=Instance.new("TextButton",F)
+	B.Size=UDim2.fromOffset(180,40)
+	B.Text=v[1]
+
+	B.MouseButton1Click:Connect(function()
+		local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		if r then
+			r.AssemblyLinearVelocity=Vector3.new(v[2],v[2],v[2])
+		end
+	end)
+end
